@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
 
-st.title("Log Analyzer")
+st.set_page_config(page_title="Log Analyzer", layout="wide")
 
 uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
 
