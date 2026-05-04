@@ -1395,7 +1395,7 @@ description = "Filesystem events monitoring"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and platform_system != \"Darwin\""
+markers = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""
 files = [
     {file = "watchdog-6.0.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d1cdb490583ebd691c012b3d6dae011000fe42edb7a82ece80965b42abd61f26"},
     {file = "watchdog-6.0.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:bc64ab3bdb6a04d69d4023b29422170b74681784ffb9463ed4870cf2f3e66112"},
@@ -1507,4 +1507,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.13"
-content-hash = "64dcf1e8bc543c5f368c53a31b189a963bb0161d07af3551a2bb5b64e204f323"
+content-hash = "43a6703804234649812ac035a80c486b3dbc6e2699d6c90edc9240bde248f421"

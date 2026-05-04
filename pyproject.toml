@@ -10,7 +10,8 @@ requires-python = "~3.13"
 dependencies = [
     "pandas (>=3.0.2,<4.0.0)",
     "streamlit (>=1.57.0,<2.0.0)",
-    "plotly (>=6.7.0,<7.0.0)"
+    "plotly (>=6.7.0,<7.0.0)",
+    "watchdog (>=6.0.0,<7.0.0)"
 ]
 package-mode = false
 
