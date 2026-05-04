@@ -2,18 +2,19 @@
 name = "nettrace"
 version = "0.0.1"
 description = ""
-authors = [
-    {name = "viniciusccosta",email = "viniciusccosta95@gmail.com"}
-]
+authors = [{ name = "viniciusccosta", email = "viniciusccosta95@gmail.com" }]
 readme = "README.md"
 requires-python = "~3.13"
 dependencies = [
     "pandas (>=3.0.2,<4.0.0)",
     "streamlit (>=1.57.0,<2.0.0)",
     "plotly (>=6.7.0,<7.0.0)",
-    "watchdog (>=6.0.0,<7.0.0)"
+    "watchdog (>=6.0.0,<7.0.0)",
 ]
+
+[tool.poetry]
 package-mode = false
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
