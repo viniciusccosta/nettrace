@@ -104,7 +104,7 @@ def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str) -> Non
     builder.configure_default_column(filter=True, sortable=True, resizable=True)
 
     builder.configure_column(group_col, rowGroup=True, hide=True)
-    builder.configure_column(child_col, rowGroup=True, hide=True)
+    builder.configure_column(child_col, rowGroup=False, hide=False)
 
     builder.configure_column("Primeira Data", aggFunc="min")
     builder.configure_column("Ultima Data", aggFunc="max")
