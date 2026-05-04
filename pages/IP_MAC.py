@@ -74,13 +74,11 @@ def _build_chart(df: pd.DataFrame, group_col: str, y_col: str) -> go.Figure:
     return fig
 
 
-def render_page() -> None:
-    st.title("IP/MAC")
+st.title("IP/MAC")
 
-    uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
-    if uploaded_file is None:
-        return
+uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
 
+if uploaded_file is not None:
     try:
         df = _load_dataframe(uploaded_file)
         st.success(f"Loaded {len(df):,} rows.")
