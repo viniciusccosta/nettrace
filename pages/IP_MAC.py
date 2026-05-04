@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from st_aggrid import AgGrid, GridOptionsBuilder
-from st_aggrid import GridUpdateMode
 from st_aggrid.shared import JsCode
 
 _COLOR_LIST = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
@@ -137,7 +136,7 @@ def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str, select
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=True,
         theme="quartz",  # or "alpine", "balham", "material"
-        update_mode=GridUpdateMode.MODEL_CHANGED,
+        update_on=["cellValueChanged", "filterChanged", "sortChanged"],
         allow_unsafe_jscode=True,  # required for JsCode renderers
     )
 
