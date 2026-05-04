@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from st_aggrid import AgGrid, GridOptionsBuilder
-from st_aggrid import GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
+from st_aggrid import GridUpdateMode
 from st_aggrid.shared import JsCode
 
 _COLOR_LIST = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
