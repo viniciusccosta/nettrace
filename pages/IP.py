@@ -29,6 +29,7 @@ if uploaded_file is not None:
 
         start_dt = pd.to_datetime(start_date)
         end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+
         df_filtered = df[(df["IP"].isin(selected_ips)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
 
         st.info(f"Filtered to {len(df_filtered):,} rows.")
