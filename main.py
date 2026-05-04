@@ -21,7 +21,7 @@ if uploaded_file is not None:
 
         # Seleção de IPs:
         ips = sorted(df["IP"].dropna().unique())
-        selected_ips = st.multiselect("Select IPs", ips, default=ips[:10] if len(ips) > 10 else ips)
+        selected_ips = st.multiselect("Select IPs", ips)
 
         # Seleção do range de datas:
         col1, col2 = st.columns(2)
@@ -29,10 +29,6 @@ if uploaded_file is not None:
         max_ts = df["Timestamp"].max().date()
         start_date = col1.date_input("Start Date", value=min_ts, min_value=min_ts, max_value=max_ts)
         end_date = col2.date_input("End Date", value=max_ts, min_value=min_ts, max_value=max_ts)
-
-        # Threshold (conexão se eventos estiverem a menos de X minutos):
-        threshold = st.number_input("Connection Threshold (minutes)", min_value=0.1, max_value=1440.0, value=5.0, step=0.5)
-        thresh_td = pd.Timedelta(minutes=threshold)
 
         # Filtrando os dados conforme as seleções do usuário:
         start_dt = pd.to_datetime(start_date)
@@ -58,42 +54,17 @@ if uploaded_file is not None:
             fig = go.Figure()
             seen_ips = set()
 
-            # Agrupar por IP e MAC para construir os segmentos de linha:
+            # Agrupar por IP e MAC para plotar somente os pontos de eventos:
             for (ip, mac), group_df in df_filtered.groupby(["IP", "MAC"]):
                 if len(group_df) < 1:
                     continue
                 group_df = group_df.sort_values("Timestamp").reset_index(drop=True)
 
-                # Construir segmentos de linha com base no threshold:
-                segments = []
-                if len(group_df) > 0:
-                    current_seg = [group_df.iloc[0]]
-                    for i in range(1, len(group_df)):
-                        time_diff = group_df.iloc[i]["Timestamp"] - current_seg[-1]["Timestamp"]
-                        if time_diff < thresh_td:
-                            current_seg.append(group_df.iloc[i])
-                        else:
-                            segments.append(current_seg)
-                            current_seg = [group_df.iloc[i]]
-                    segments.append(current_seg)
-
-                # Para cada segmento, adicionar os dados ao gráfico:
-                x_data = []
-                y_data = []
-                text_data = []
-                customdata_data = []
+                x_data = group_df["Timestamp"].tolist()
                 y_val = mac_to_y[mac]
-                for seg_idx, seg in enumerate(segments):
-                    for row in seg:
-                        x_data.append(row["Timestamp"])
-                        y_data.append(y_val)
-                        text_data.append(ip)
-                        customdata_data.append(mac)
-                    if seg_idx < len(segments) - 1:
-                        x_data.append(None)
-                        y_data.append(None)
-                        text_data.append(None)
-                        customdata_data.append(None)
+                y_data = [y_val] * len(group_df)
+                text_data = [ip] * len(group_df)
+                customdata_data = [mac] * len(group_df)
 
                 # Determinar a cor do IP e se deve mostrar a legenda:
                 color_ip = color_discrete[ip]
@@ -105,11 +76,10 @@ if uploaded_file is not None:
                     go.Scatter(
                         x=x_data,
                         y=y_data,
-                        mode="lines+markers",
+                        mode="markers",
                         name=ip,
                         legendgroup=ip,
                         showlegend=show_legend,
-                        line=dict(color=color_ip, width=2),
                         marker=dict(color=color_ip, size=6),
                         text=text_data,
                         customdata=customdata_data,
@@ -119,7 +89,7 @@ if uploaded_file is not None:
 
             # Atualizar layout do gráfico:
             fig.update_layout(
-                title=f"Log Analysis: Events connected if within {threshold} minutes ({len(df_filtered):,} rows)",
+                title=f"Log Analysis: Event Points ({len(df_filtered):,} rows)",
                 xaxis_title="Timestamp",
                 yaxis_title="MAC Address",
                 hovermode="closest",
