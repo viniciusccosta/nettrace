@@ -1307,22 +1307,22 @@ snowflake = ["snowflake-connector-python (>=3.3.0)", "snowflake-snowpark-python[
 sql = ["SQLAlchemy (>=2.0.0)"]
 
 [[package]]
-name = "streamlit-aggrid"
-version = "1.2.1.post2"
-description = "Streamlit component implementation of ag-grid"
+name = "streamlit-aggrid-v2"
+version = "0.1.5"
+description = "AG Grid component for Streamlit — interactive tables, editing, filtering & more."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 markers = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""
 files = [
-    {file = "streamlit_aggrid-1.2.1.post2-py3-none-any.whl", hash = "sha256:a812274e69bc6dcdebdd390c2eca7d0502e90420b869d4abf9d74ca3af47bc51"},
-    {file = "streamlit_aggrid-1.2.1.post2.tar.gz", hash = "sha256:ad186998894af9356d7fa1d6de9f324a376714583cccc31d87c8c003334089fc"},
+    {file = "streamlit_aggrid_v2-0.1.5-py3-none-any.whl", hash = "sha256:0464326e2580c283f40ec26de81d087b60ab34761707a9d2dc860317e613ec13"},
+    {file = "streamlit_aggrid_v2-0.1.5.tar.gz", hash = "sha256:27c61684fa41f36762c83e6c084d23840964036a222e06abdcb5416233111d24"},
 ]
 
 [package.dependencies]
 pandas = ">=1.4.0"
 python-decouple = "*"
-streamlit = ">=1.2"
+streamlit = ">=1.51"
 
 [[package]]
 name = "tenacity"
@@ -1538,4 +1538,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.13"
-content-hash = "f94da86364d98c43f427ee3262d03a595a6fc37c98a65c2a0ccf6ed966f9003d"
+content-hash = "ccf35bdc7c89deae7908e95a7e00c00dbdeeebb7ec45a1b7650a33b127733c3d"

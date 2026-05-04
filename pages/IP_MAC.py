@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-import importlib
+from st_aggrid import AgGrid, GridOptionsBuilder
+from st_aggrid import GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
 
 _COLOR_LIST = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
 
@@ -89,15 +90,6 @@ def _build_pivot_source(df: pd.DataFrame, group_col: str, child_col: str) -> pd.
 
 
 def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str) -> None:
-    try:
-        st_aggrid = importlib.import_module("st_aggrid")
-        AgGrid = st_aggrid.AgGrid
-        GridOptionsBuilder = st_aggrid.GridOptionsBuilder
-    except ImportError:
-        st.error("Pivot table interativa requer streamlit-aggrid.")
-        st.code("poetry add streamlit-aggrid")
-        return
-
     pivot_source = _build_pivot_source(df, group_col, child_col)
 
     builder = GridOptionsBuilder.from_dataframe(pivot_source)
@@ -123,6 +115,9 @@ def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str) -> Non
         height=420,
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=True,
+        theme="quartz",  # or "alpine", "balham", "material"
+        update_mode=GridUpdateMode.MODEL_CHANGED,
+        allow_unsafe_jscode=True,  # required for JsCode renderers
     )
 
 
