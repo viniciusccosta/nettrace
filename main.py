@@ -10,20 +10,20 @@ uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx"
 
 if uploaded_file is not None:
     try:
-        if uploaded_file.name.lower().endswith('.csv'):
+        if uploaded_file.name.lower().endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
-        df = df.dropna(subset=['Timestamp'])
+        df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
+        df = df.dropna(subset=["Timestamp"])
         st.success(f"Loaded {len(df):,} rows.")
 
-        ips = sorted(df['IP'].dropna().unique())
+        ips = sorted(df["IP"].dropna().unique())
         selected_ips = st.multiselect("Select IPs", ips, default=ips[:10] if len(ips) > 10 else ips)
 
         col1, col2 = st.columns(2)
-        min_ts = df['Timestamp'].min().date()
-        max_ts = df['Timestamp'].max().date()
+        min_ts = df["Timestamp"].min().date()
+        max_ts = df["Timestamp"].max().date()
         start_date = col1.date_input("Start Date", value=min_ts, min_value=min_ts, max_value=max_ts)
         end_date = col2.date_input("End Date", value=max_ts, min_value=min_ts, max_value=max_ts)
 
@@ -33,35 +33,33 @@ if uploaded_file is not None:
         # Filter data
         start_dt = pd.to_datetime(start_date)
         end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-        df_filtered = df[(df['IP'].isin(selected_ips)) &
-                         (df['Timestamp'] >= start_dt) &
-                         (df['Timestamp'] <= end_dt)].copy()
+        df_filtered = df[(df["IP"].isin(selected_ips)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
         st.info(f"Filtered to {len(df_filtered):,} rows.")
 
         if len(df_filtered) > 0:
-            df_filtered.sort_values(['IP', 'MAC', 'Timestamp'], inplace=True)
+            df_filtered.sort_values(["IP", "MAC", "Timestamp"], inplace=True)
 
-            unique_macs = sorted(df_filtered['MAC'].dropna().unique())
+            unique_macs = sorted(df_filtered["MAC"].dropna().unique())
             mac_to_y = {mac: i for i, mac in enumerate(unique_macs)}
 
-            unique_ips_f = sorted(df_filtered['IP'].unique())
+            unique_ips_f = sorted(df_filtered["IP"].unique())
             color_list = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
             color_discrete = {ip: color_list[i % len(color_list)] for i, ip in enumerate(unique_ips_f)}
 
             fig = go.Figure()
             seen_ips = set()
 
-            for (ip, mac), group_df in df_filtered.groupby(['IP', 'MAC']):
+            for (ip, mac), group_df in df_filtered.groupby(["IP", "MAC"]):
                 if len(group_df) < 1:
                     continue
-                group_df = group_df.sort_values('Timestamp').reset_index(drop=True)
+                group_df = group_df.sort_values("Timestamp").reset_index(drop=True)
 
                 # Build segments
                 segments = []
                 if len(group_df) > 0:
                     current_seg = [group_df.iloc[0]]
                     for i in range(1, len(group_df)):
-                        time_diff = group_df.iloc[i]['Timestamp'] - current_seg[-1]['Timestamp']
+                        time_diff = group_df.iloc[i]["Timestamp"] - current_seg[-1]["Timestamp"]
                         if time_diff < thresh_td:
                             current_seg.append(group_df.iloc[i])
                         else:
@@ -77,7 +75,7 @@ if uploaded_file is not None:
                 y_val = mac_to_y[mac]
                 for seg_idx, seg in enumerate(segments):
                     for row in seg:
-                        x_data.append(row['Timestamp'])
+                        x_data.append(row["Timestamp"])
                         y_data.append(y_val)
                         text_data.append(ip)
                         customdata_data.append(mac)
@@ -91,19 +89,21 @@ if uploaded_file is not None:
                 show_legend = ip not in seen_ips
                 seen_ips.add(ip)
 
-                fig.add_trace(go.Scatter(
-                    x=x_data,
-                    y=y_data,
-                    mode='lines+markers',
-                    name=ip,
-                    legendgroup=ip,
-                    showlegend=show_legend,
-                    line=dict(color=color_ip, width=2),
-                    marker=dict(color=color_ip, size=6),
-                    text=text_data,
-                    customdata=customdata_data,
-                    hovertemplate="<b>IP:</b> %{text}<br><b>MAC:</b> %{customdata}<br><b>Timestamp:</b> %{x|%Y-%m-%d %H:%M:%S}<br><extra></extra>",
-                ))
+                fig.add_trace(
+                    go.Scatter(
+                        x=x_data,
+                        y=y_data,
+                        mode="lines+markers",
+                        name=ip,
+                        legendgroup=ip,
+                        showlegend=show_legend,
+                        line=dict(color=color_ip, width=2),
+                        marker=dict(color=color_ip, size=6),
+                        text=text_data,
+                        customdata=customdata_data,
+                        hovertemplate="<b>IP:</b> %{text}<br><b>MAC:</b> %{customdata}<br><b>Timestamp:</b> %{x|%Y-%m-%d %H:%M:%S}<br><extra></extra>",
+                    )
+                )
 
             # Update layout
             fig.update_layout(
@@ -114,15 +114,10 @@ if uploaded_file is not None:
                 height=700,
                 legend_title="IP",
             )
-            fig.update_yaxes(
-                tickvals=list(mac_to_y.values()),
-                ticktext=[str(m) for m in mac_to_y.keys()],
-                automargin=True
-            )
+            fig.update_yaxes(tickvals=list(mac_to_y.values()), ticktext=[str(m) for m in mac_to_y.keys()], automargin=True)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.warning("No data after applying filters.")
     except Exception as e:
         st.error(f"Error processing file: {str(e)}")
-
