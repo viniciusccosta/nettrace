@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from st_aggrid import AgGrid, GridOptionsBuilder
 from st_aggrid import GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode
+from st_aggrid.shared import JsCode
 
 _COLOR_LIST = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
 
@@ -89,7 +90,7 @@ def _build_pivot_source(df: pd.DataFrame, group_col: str, child_col: str) -> pd.
     return pivot_df.sort_values([group_col, child_col])
 
 
-def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str) -> None:
+def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str, selected: list) -> None:
     pivot_source = _build_pivot_source(df, group_col, child_col)
 
     builder = GridOptionsBuilder.from_dataframe(pivot_source)
@@ -109,9 +110,29 @@ def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str) -> Non
         suppressAggFuncInHeader=True,
     )
 
+    grid_options = builder.build()
+    grid_options["autoGroupColumnDef"] = {
+        "filter": "agSetColumnFilter",
+        "sortable": True,
+        "resizable": True,
+        "filterValueGetter": JsCode(f"function(params) {{ return params.data ? params.data['{group_col}'] : null; }}"),
+    }
+    auto_col_key = f"ag-Grid-AutoColumn-{group_col}"
+    if selected:
+        grid_options["initialState"] = {
+            "filter": {
+                "filterModel": {
+                    auto_col_key: {
+                        "filterType": "set",
+                        "values": [str(v) for v in selected],
+                    }
+                }
+            }
+        }
+
     AgGrid(
         pivot_source,
-        gridOptions=builder.build(),
+        gridOptions=grid_options,
         height=420,
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=True,
@@ -154,14 +175,15 @@ if uploaded_files:
 
         selected = st.multiselect(label, options, default=default)
 
-        df_filtered = df[(df[group_col].isin(selected)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
+        df_date_filtered = df[(df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
+        df_filtered = df_date_filtered[df_date_filtered[group_col].isin(selected)].copy()
 
         st.info(f"Filtered to {len(df_filtered):,} rows.")
 
         if len(df_filtered) > 0:
             st.plotly_chart(_build_chart(df_filtered, group_col, y_col), width="stretch")
             st.subheader("Tabela Dinamica")
-            _render_pivot_table(df_filtered, group_col, y_col)
+            _render_pivot_table(df_date_filtered, group_col, y_col, selected)
         else:
             st.warning("No data after applying filters.")
     except Exception as e:
