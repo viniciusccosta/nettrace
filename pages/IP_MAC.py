@@ -77,6 +77,35 @@ def _build_chart(df: pd.DataFrame, group_col: str, y_col: str) -> go.Figure:
     return fig
 
 
+def _build_summary_table(df: pd.DataFrame, group_col: str, child_col: str) -> pd.DataFrame:
+    rows = []
+    index = []
+
+    for group in sorted(df[group_col].dropna().unique()):
+        group_df = df[df[group_col] == group]
+        index.append((group, "(total)"))
+        rows.append(
+            {
+                "Primeira Data": group_df["Timestamp"].min(),
+                "Ultima Data": group_df["Timestamp"].max(),
+                "Contagem de Datas": group_df["Timestamp"].nunique(),
+            }
+        )
+
+        for child in sorted(group_df[child_col].dropna().unique()):
+            pair_df = group_df[group_df[child_col] == child]
+            index.append((group, f"↳ {child}"))
+            rows.append(
+                {
+                    "Primeira Data": pair_df["Timestamp"].min(),
+                    "Ultima Data": pair_df["Timestamp"].max(),
+                    "Contagem de Datas": pair_df["Timestamp"].nunique(),
+                }
+            )
+
+    return pd.DataFrame(rows, index=pd.MultiIndex.from_tuples(index, names=[group_col, child_col]))
+
+
 st.title("IP/MAC")
 
 uploaded_files = st.file_uploader("Upload CSV or Excel file(s)", type=["csv", "xlsx", "xls"], accept_multiple_files=True)
@@ -116,6 +145,8 @@ if uploaded_files:
 
         if len(df_filtered) > 0:
             st.plotly_chart(_build_chart(df_filtered, group_col, y_col), width="stretch")
+            st.subheader("Tabela Dinamica")
+            st.dataframe(_build_summary_table(df_filtered, group_col, y_col), width="stretch")
         else:
             st.warning("No data after applying filters.")
     except Exception as e:
