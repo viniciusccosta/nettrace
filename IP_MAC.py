@@ -35,7 +35,8 @@ def render_page() -> None:
 
         if mode == "IP":
             selectors = sorted(df["IP"].dropna().unique())
-            selected_values = st.multiselect("Select IPs", selectors)
+            default_ips = sorted(df.groupby("IP")["MAC"].nunique().loc[lambda s: s > 1].index)
+            selected_values = st.multiselect("Select IPs", selectors, default=default_ips)
             df_filtered = df[(df["IP"].isin(selected_values)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
 
             st.info(f"Filtered to {len(df_filtered):,} rows.")
@@ -102,7 +103,8 @@ def render_page() -> None:
                 st.warning("No data after applying filters.")
         else:
             selectors = sorted(df["MAC"].dropna().unique())
-            selected_values = st.multiselect("Select MAC Addresses", selectors)
+            default_macs = sorted(df.groupby("MAC")["IP"].nunique().loc[lambda s: s > 1].index)
+            selected_values = st.multiselect("Select MAC Addresses", selectors, default=default_macs)
             df_filtered = df[(df["MAC"].isin(selected_values)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
 
             st.info(f"Filtered to {len(df_filtered):,} rows.")
