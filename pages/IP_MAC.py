@@ -8,11 +8,14 @@ _COLOR_LIST = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.c
 _Y_AXIS_LABEL = {"MAC": "MAC Address", "IP": "IP Address"}
 
 
-def _load_dataframe(uploaded_file) -> pd.DataFrame:
-    if uploaded_file.name.lower().endswith(".csv"):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
+def _load_dataframe(uploaded_files: list) -> pd.DataFrame:
+    frames = []
+    for f in uploaded_files:
+        if f.name.lower().endswith(".csv"):
+            frames.append(pd.read_csv(f))
+        else:
+            frames.append(pd.read_excel(f))
+    df = pd.concat(frames, ignore_index=True)
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
     return df.dropna(subset=["Timestamp"])
 
@@ -76,12 +79,12 @@ def _build_chart(df: pd.DataFrame, group_col: str, y_col: str) -> go.Figure:
 
 st.title("IP/MAC")
 
-uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
+uploaded_files = st.file_uploader("Upload CSV or Excel file(s)", type=["csv", "xlsx", "xls"], accept_multiple_files=True)
 
-if uploaded_file is not None:
+if uploaded_files:
     try:
-        df = _load_dataframe(uploaded_file)
-        st.success(f"Loaded {len(df):,} rows.")
+        df = _load_dataframe(uploaded_files)
+        st.success(f"Loaded {len(df):,} rows from {len(uploaded_files)} file(s).")
 
         mode = st.radio("View By", ["IP", "MAC"], horizontal=True)
 
