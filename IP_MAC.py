@@ -3,11 +3,15 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
-st.title("IP/MAC")
 
-uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
+def render_page() -> None:
+    st.title("IP/MAC")
 
-if uploaded_file is not None:
+    uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
+
+    if uploaded_file is None:
+        return
+
     try:
         if uploaded_file.name.lower().endswith(".csv"):
             df = pd.read_csv(uploaded_file)
