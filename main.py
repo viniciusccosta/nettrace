@@ -10,6 +10,7 @@ uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx"
 
 if uploaded_file is not None:
     try:
+        # Carrega o arquivo CSV:
         if uploaded_file.name.lower().endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         else:
@@ -18,43 +19,52 @@ if uploaded_file is not None:
         df = df.dropna(subset=["Timestamp"])
         st.success(f"Loaded {len(df):,} rows.")
 
+        # Seleção de IPs:
         ips = sorted(df["IP"].dropna().unique())
         selected_ips = st.multiselect("Select IPs", ips, default=ips[:10] if len(ips) > 10 else ips)
 
+        # Seleção do range de datas:
         col1, col2 = st.columns(2)
         min_ts = df["Timestamp"].min().date()
         max_ts = df["Timestamp"].max().date()
         start_date = col1.date_input("Start Date", value=min_ts, min_value=min_ts, max_value=max_ts)
         end_date = col2.date_input("End Date", value=max_ts, min_value=min_ts, max_value=max_ts)
 
+        # Threshold (conexão se eventos estiverem a menos de X minutos):
         threshold = st.number_input("Connection Threshold (minutes)", min_value=0.1, max_value=1440.0, value=5.0, step=0.5)
         thresh_td = pd.Timedelta(minutes=threshold)
 
-        # Filter data
+        # Filtrando os dados conforme as seleções do usuário:
         start_dt = pd.to_datetime(start_date)
         end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
         df_filtered = df[(df["IP"].isin(selected_ips)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
         st.info(f"Filtered to {len(df_filtered):,} rows.")
 
+        # Caso haja dados após o filtro, criar o gráfico:
         if len(df_filtered) > 0:
+            # Ordenar por IP, MAC e Timestamp para garantir a sequência correta:
             df_filtered.sort_values(["IP", "MAC", "Timestamp"], inplace=True)
 
+            # Mapeamento de MAC para valores numéricos no eixo Y:
             unique_macs = sorted(df_filtered["MAC"].dropna().unique())
             mac_to_y = {mac: i for i, mac in enumerate(unique_macs)}
 
+            # Gerar cores para cada IP:
             unique_ips_f = sorted(df_filtered["IP"].unique())
             color_list = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
             color_discrete = {ip: color_list[i % len(color_list)] for i, ip in enumerate(unique_ips_f)}
 
+            # Construir o gráfico usando Plotly:
             fig = go.Figure()
             seen_ips = set()
 
+            # Agrupar por IP e MAC para construir os segmentos de linha:
             for (ip, mac), group_df in df_filtered.groupby(["IP", "MAC"]):
                 if len(group_df) < 1:
                     continue
                 group_df = group_df.sort_values("Timestamp").reset_index(drop=True)
 
-                # Build segments
+                # Construir segmentos de linha com base no threshold:
                 segments = []
                 if len(group_df) > 0:
                     current_seg = [group_df.iloc[0]]
@@ -67,7 +77,7 @@ if uploaded_file is not None:
                             current_seg = [group_df.iloc[i]]
                     segments.append(current_seg)
 
-                # Build trace data
+                # Para cada segmento, adicionar os dados ao gráfico:
                 x_data = []
                 y_data = []
                 text_data = []
@@ -85,10 +95,12 @@ if uploaded_file is not None:
                         text_data.append(None)
                         customdata_data.append(None)
 
+                # Determinar a cor do IP e se deve mostrar a legenda:
                 color_ip = color_discrete[ip]
                 show_legend = ip not in seen_ips
                 seen_ips.add(ip)
 
+                # Adicionar a linha ao gráfico:
                 fig.add_trace(
                     go.Scatter(
                         x=x_data,
@@ -105,7 +117,7 @@ if uploaded_file is not None:
                     )
                 )
 
-            # Update layout
+            # Atualizar layout do gráfico:
             fig.update_layout(
                 title=f"Log Analysis: Events connected if within {threshold} minutes ({len(df_filtered):,} rows)",
                 xaxis_title="Timestamp",
@@ -116,6 +128,7 @@ if uploaded_file is not None:
             )
             fig.update_yaxes(tickvals=list(mac_to_y.values()), ticktext=[str(m) for m in mac_to_y.keys()], automargin=True)
 
+            # Exibir o gráfico:
             st.plotly_chart(fig, width="stretch")
         else:
             st.warning("No data after applying filters.")
