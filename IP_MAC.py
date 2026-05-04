@@ -3,23 +3,86 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
+_COLOR_LIST = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
+
+_Y_AXIS_LABEL = {"MAC": "MAC Address", "IP": "IP Address"}
+
+
+def _load_dataframe(uploaded_file) -> pd.DataFrame:
+    if uploaded_file.name.lower().endswith(".csv"):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
+    df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
+    return df.dropna(subset=["Timestamp"])
+
+
+def _build_color_map(items: list) -> dict:
+    return {item: _COLOR_LIST[i % len(_COLOR_LIST)] for i, item in enumerate(sorted(items))}
+
+
+def _build_chart(df: pd.DataFrame, group_col: str, y_col: str) -> go.Figure:
+    df = df.sort_values([group_col, y_col, "Timestamp"])
+
+    y_index = {val: i for i, val in enumerate(sorted(df[y_col].dropna().unique()))}
+    color_map = _build_color_map(df[group_col].dropna().unique())
+
+    fig = go.Figure()
+    seen = set()
+
+    for (group, y_val), group_df in df.groupby([group_col, y_col]):
+        if group_df.empty:
+            continue
+        group_df = group_df.sort_values("Timestamp").reset_index(drop=True)
+        n = len(group_df)
+
+        fig.add_trace(
+            go.Scatter(
+                x=group_df["Timestamp"].tolist(),
+                y=[y_index[y_val]] * n,
+                mode="markers",
+                name=group,
+                legendgroup=group,
+                showlegend=group not in seen,
+                marker=dict(color=color_map[group], size=6),
+                text=[group] * n,
+                customdata=[y_val] * n,
+                hovertemplate=(
+                    f"<b>{group_col}:</b> %{{text}}<br>"
+                    f"<b>{y_col}:</b> %{{customdata}}<br>"
+                    "<b>Timestamp:</b> %{x|%Y-%m-%d %H:%M:%S}<br>"
+                    "<extra></extra>"
+                ),
+            )
+        )
+        seen.add(group)
+
+    fig.update_layout(
+        title=f"Log Analysis: Event Points ({len(df):,} rows)",
+        xaxis_title="Timestamp",
+        yaxis_title=_Y_AXIS_LABEL[y_col],
+        hovermode="closest",
+        height=700,
+        legend_title=group_col,
+    )
+    fig.update_yaxes(
+        tickvals=list(y_index.values()),
+        ticktext=[str(v) for v in y_index.keys()],
+        automargin=True,
+    )
+
+    return fig
+
 
 def render_page() -> None:
     st.title("IP/MAC")
 
     uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx", "xls"])
-
     if uploaded_file is None:
         return
 
     try:
-        if uploaded_file.name.lower().endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-
-        df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
-        df = df.dropna(subset=["Timestamp"])
+        df = _load_dataframe(uploaded_file)
         st.success(f"Loaded {len(df):,} rows.")
 
         mode = st.radio("View By", ["IP", "MAC"], horizontal=True)
@@ -34,140 +97,25 @@ def render_page() -> None:
         end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
 
         if mode == "IP":
-            selectors = sorted(df["IP"].dropna().unique())
-            default_ips = sorted(df.groupby("IP")["MAC"].nunique().loc[lambda s: s > 1].index)
-            selected_values = st.multiselect("Select IPs", selectors, default=default_ips)
-            df_filtered = df[(df["IP"].isin(selected_values)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
-
-            st.info(f"Filtered to {len(df_filtered):,} rows.")
-
-            if len(df_filtered) > 0:
-                df_filtered.sort_values(["IP", "MAC", "Timestamp"], inplace=True)
-
-                unique_macs = sorted(df_filtered["MAC"].dropna().unique())
-                mac_to_y = {mac: i for i, mac in enumerate(unique_macs)}
-
-                unique_ips_f = sorted(df_filtered["IP"].dropna().unique())
-                color_list = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
-                color_discrete = {ip: color_list[i % len(color_list)] for i, ip in enumerate(unique_ips_f)}
-
-                fig = go.Figure()
-                seen_ips = set()
-
-                for (ip, mac), group_df in df_filtered.groupby(["IP", "MAC"]):
-                    if len(group_df) < 1:
-                        continue
-
-                    group_df = group_df.sort_values("Timestamp").reset_index(drop=True)
-                    x_data = group_df["Timestamp"].tolist()
-                    y_val = mac_to_y[mac]
-                    y_data = [y_val] * len(group_df)
-                    text_data = [ip] * len(group_df)
-                    customdata_data = [mac] * len(group_df)
-
-                    color_ip = color_discrete[ip]
-                    show_legend = ip not in seen_ips
-                    seen_ips.add(ip)
-
-                    fig.add_trace(
-                        go.Scatter(
-                            x=x_data,
-                            y=y_data,
-                            mode="markers",
-                            name=ip,
-                            legendgroup=ip,
-                            showlegend=show_legend,
-                            marker=dict(color=color_ip, size=6),
-                            text=text_data,
-                            customdata=customdata_data,
-                            hovertemplate="<b>IP:</b> %{text}<br><b>MAC:</b> %{customdata}<br><b>Timestamp:</b> %{x|%Y-%m-%d %H:%M:%S}<br><extra></extra>",
-                        )
-                    )
-
-                fig.update_layout(
-                    title=f"Log Analysis: Event Points ({len(df_filtered):,} rows)",
-                    xaxis_title="Timestamp",
-                    yaxis_title="MAC Address",
-                    hovermode="closest",
-                    height=700,
-                    legend_title="IP",
-                )
-                fig.update_yaxes(
-                    tickvals=list(mac_to_y.values()),
-                    ticktext=[str(mac) for mac in mac_to_y.keys()],
-                    automargin=True,
-                )
-
-                st.plotly_chart(fig, width="stretch")
-            else:
-                st.warning("No data after applying filters.")
+            group_col, y_col = "IP", "MAC"
+            options = sorted(df["IP"].dropna().unique())
+            default = sorted(df.groupby("IP")["MAC"].nunique().loc[lambda s: s > 1].index)
+            label = "Select IPs"
         else:
-            selectors = sorted(df["MAC"].dropna().unique())
-            default_macs = sorted(df.groupby("MAC")["IP"].nunique().loc[lambda s: s > 1].index)
-            selected_values = st.multiselect("Select MAC Addresses", selectors, default=default_macs)
-            df_filtered = df[(df["MAC"].isin(selected_values)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
+            group_col, y_col = "MAC", "IP"
+            options = sorted(df["MAC"].dropna().unique())
+            default = sorted(df.groupby("MAC")["IP"].nunique().loc[lambda s: s > 1].index)
+            label = "Select MAC Addresses"
 
-            st.info(f"Filtered to {len(df_filtered):,} rows.")
+        selected = st.multiselect(label, options, default=default)
 
-            if len(df_filtered) > 0:
-                df_filtered.sort_values(["MAC", "IP", "Timestamp"], inplace=True)
+        df_filtered = df[(df[group_col].isin(selected)) & (df["Timestamp"] >= start_dt) & (df["Timestamp"] <= end_dt)].copy()
 
-                unique_ips = sorted(df_filtered["IP"].dropna().unique())
-                ip_to_y = {ip: i for i, ip in enumerate(unique_ips)}
+        st.info(f"Filtered to {len(df_filtered):,} rows.")
 
-                unique_macs_f = sorted(df_filtered["MAC"].dropna().unique())
-                color_list = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
-                color_discrete = {mac: color_list[i % len(color_list)] for i, mac in enumerate(unique_macs_f)}
-
-                fig = go.Figure()
-                seen_macs = set()
-
-                for (mac, ip), group_df in df_filtered.groupby(["MAC", "IP"]):
-                    if len(group_df) < 1:
-                        continue
-
-                    group_df = group_df.sort_values("Timestamp").reset_index(drop=True)
-                    x_data = group_df["Timestamp"].tolist()
-                    y_val = ip_to_y[ip]
-                    y_data = [y_val] * len(group_df)
-                    text_data = [mac] * len(group_df)
-                    customdata_data = [ip] * len(group_df)
-
-                    color_mac = color_discrete[mac]
-                    show_legend = mac not in seen_macs
-                    seen_macs.add(mac)
-
-                    fig.add_trace(
-                        go.Scatter(
-                            x=x_data,
-                            y=y_data,
-                            mode="markers",
-                            name=mac,
-                            legendgroup=mac,
-                            showlegend=show_legend,
-                            marker=dict(color=color_mac, size=6),
-                            text=text_data,
-                            customdata=customdata_data,
-                            hovertemplate="<b>MAC:</b> %{text}<br><b>IP:</b> %{customdata}<br><b>Timestamp:</b> %{x|%Y-%m-%d %H:%M:%S}<br><extra></extra>",
-                        )
-                    )
-
-                fig.update_layout(
-                    title=f"Log Analysis: Event Points by MAC ({len(df_filtered):,} rows)",
-                    xaxis_title="Timestamp",
-                    yaxis_title="IP Address",
-                    hovermode="closest",
-                    height=700,
-                    legend_title="MAC",
-                )
-                fig.update_yaxes(
-                    tickvals=list(ip_to_y.values()),
-                    ticktext=[str(ip) for ip in ip_to_y.keys()],
-                    automargin=True,
-                )
-
-                st.plotly_chart(fig, width="stretch")
-            else:
-                st.warning("No data after applying filters.")
+        if len(df_filtered) > 0:
+            st.plotly_chart(_build_chart(df_filtered, group_col, y_col), width="stretch")
+        else:
+            st.warning("No data after applying filters.")
     except Exception as e:
         st.error(f"Error processing file: {str(e)}")
