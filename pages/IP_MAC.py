@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import importlib
 
 _COLOR_LIST = px.colors.qualitative.Plotly + px.colors.qualitative.Dark24 + px.colors.qualitative.Light24
 
@@ -77,33 +78,52 @@ def _build_chart(df: pd.DataFrame, group_col: str, y_col: str) -> go.Figure:
     return fig
 
 
-def _build_summary_table(df: pd.DataFrame, group_col: str, child_col: str) -> pd.DataFrame:
-    rows = []
-    index = []
+def _build_pivot_source(df: pd.DataFrame, group_col: str, child_col: str) -> pd.DataFrame:
+    pivot_df = (
+        df.groupby([group_col, child_col])["Timestamp"]
+        .agg(["min", "max", "nunique"])
+        .reset_index()
+        .rename(columns={"min": "Primeira Data", "max": "Ultima Data", "nunique": "Contagem de Datas"})
+    )
+    return pivot_df.sort_values([group_col, child_col])
 
-    for group in sorted(df[group_col].dropna().unique()):
-        group_df = df[df[group_col] == group]
-        index.append((group, "(total)"))
-        rows.append(
-            {
-                "Primeira Data": group_df["Timestamp"].min(),
-                "Ultima Data": group_df["Timestamp"].max(),
-                "Contagem de Datas": group_df["Timestamp"].nunique(),
-            }
-        )
 
-        for child in sorted(group_df[child_col].dropna().unique()):
-            pair_df = group_df[group_df[child_col] == child]
-            index.append((group, f"↳ {child}"))
-            rows.append(
-                {
-                    "Primeira Data": pair_df["Timestamp"].min(),
-                    "Ultima Data": pair_df["Timestamp"].max(),
-                    "Contagem de Datas": pair_df["Timestamp"].nunique(),
-                }
-            )
+def _render_pivot_table(df: pd.DataFrame, group_col: str, child_col: str) -> None:
+    try:
+        st_aggrid = importlib.import_module("st_aggrid")
+        AgGrid = st_aggrid.AgGrid
+        GridOptionsBuilder = st_aggrid.GridOptionsBuilder
+    except ImportError:
+        st.error("Pivot table interativa requer streamlit-aggrid.")
+        st.code("poetry add streamlit-aggrid")
+        return
 
-    return pd.DataFrame(rows, index=pd.MultiIndex.from_tuples(index, names=[group_col, child_col]))
+    pivot_source = _build_pivot_source(df, group_col, child_col)
+
+    builder = GridOptionsBuilder.from_dataframe(pivot_source)
+    builder.configure_default_column(filter=True, sortable=True, resizable=True)
+
+    builder.configure_column(group_col, rowGroup=True, hide=True)
+    builder.configure_column(child_col, rowGroup=True, hide=True)
+
+    builder.configure_column("Primeira Data", aggFunc="min")
+    builder.configure_column("Ultima Data", aggFunc="max")
+    builder.configure_column("Contagem de Datas", aggFunc="sum", type=["numericColumn"])
+
+    builder.configure_grid_options(
+        groupDisplayType="multipleColumns",
+        groupDefaultExpanded=0,
+        animateRows=True,
+        suppressAggFuncInHeader=True,
+    )
+
+    AgGrid(
+        pivot_source,
+        gridOptions=builder.build(),
+        height=420,
+        fit_columns_on_grid_load=False,
+        enable_enterprise_modules=True,
+    )
 
 
 st.title("IP/MAC")
@@ -146,7 +166,7 @@ if uploaded_files:
         if len(df_filtered) > 0:
             st.plotly_chart(_build_chart(df_filtered, group_col, y_col), width="stretch")
             st.subheader("Tabela Dinamica")
-            st.dataframe(_build_summary_table(df_filtered, group_col, y_col), width="stretch")
+            _render_pivot_table(df_filtered, group_col, y_col)
         else:
             st.warning("No data after applying filters.")
     except Exception as e:
