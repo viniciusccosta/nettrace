@@ -1,4 +1,4 @@
-# nettrace
+# NetTrace
 
 Dashboard Streamlit para analise de eventos de rede ao longo do tempo, com foco em relacao entre IP e MAC.
 
